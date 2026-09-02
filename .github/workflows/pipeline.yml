@@ -8,27 +8,125 @@ on:
 permissions:
   contents: write
 jobs:
-  pipeline:
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar o código
-        uses: actions/checkout@v4
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Instalar dependências
-        run: npm ci
-      - name: Validar o código
-        run: npm run lint
-      - name: Executar testes
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Gerar e verificar build
+        run: npm run build && test -f dist/index.html && test -f dist/style.css && test -f dist/script.js
+
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Executar testes automatizados
         run: npm test
-      - name: Gerar build
-        run: npm run build
+
+  quality:
+    name: Quality
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Analisar qualidade do código
+        run: npm run lint
+
+  security:
+    name: Security
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Procurar vulnerabilidades
+        run: npm audit --audit-level=high
+
+  package:
+    name: Package
+    needs: security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Empacotar e conferir aplicação
+        run: npm run build && find dist -maxdepth 1 -type f -print
+
+  deploy:
+    name: Deploy
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - name: Gerar build de produção
+        run: npm ci && npm run build
       - name: Publicar no GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@v4.1.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+
+  smoke-test:
+    name: Smoke Test
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - name: Preparar aplicação
+        run: npm ci && npm run build
+      - name: Verificar resposta da página
+        run: |
+          npx --yes serve dist -l 3000 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          for attempt in 1 2 3 4 5; do
+            curl --fail --silent http://localhost:3000/ > /dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+
+  performance:
+    name: Performance
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: npm }
+      - name: Gerar aplicação
+        run: npm ci && npm run build
+      - name: Validar tamanho do site
+        run: |
+          SIZE=$(du -sk dist | cut -f1)
+          echo "Tamanho total: ${SIZE} KB"
+          test "$SIZE" -lt 1024
+
+  monitoring:
+    name: Monitoring
+    needs: performance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Confirmar publicação
+        run: git ls-remote --exit-code origin refs/heads/gh-pages
+      - run: echo "Pipeline concluída e branch gh-pages disponível."

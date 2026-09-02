@@ -6,13 +6,15 @@ Página educativa sobre UX Design criada para demonstrar uma pipeline automatiza
 
 | Action | Etapa | Função e contribuição |
 | --- | --- | --- |
-| `actions/checkout@v4` | Preparação | Baixa o código no ambiente da pipeline. |
-| `actions/setup-node@v4` | Preparação | Configura o Node.js 20 e o cache do npm. |
-| `peaceiris/actions-gh-pages@v4` | Deploy | Publica a pasta `dist` na branch `gh-pages`. |
+| `actions/checkout@v5` | Preparação | Baixa o código no ambiente de cada job da pipeline. |
+| `actions/setup-node@v6` | Preparação | Configura o Node.js 22 e o cache do npm. |
+| `peaceiris/actions-gh-pages@v4.1.0` | Deploy | Publica a pasta `dist` na branch `gh-pages`. |
 
 ## Pipeline
 
-`Checkout → Node.js → Instalação → Lint → Testes → Build → Deploy`
+`Build → Test → Quality → Security → Package → Deploy → Smoke Test → Performance → Monitoring`
+
+Cada etapa é um job independente e aparece como um nó no gráfico do GitHub Actions. Os jobs são ligados por `needs`, portanto uma etapa só começa quando a anterior termina com sucesso.
 
 A pipeline roda em `push` e `pull_request` para `main`. O deploy ocorre apenas em pushes na branch principal, evitando publicar mudanças ainda não aprovadas.
 
