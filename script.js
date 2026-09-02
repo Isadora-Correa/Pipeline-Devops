@@ -1,0 +1,1 @@
+const button=document.querySelector('header button');const menu=document.querySelector('nav');if(button&&menu)button.addEventListener('click',()=>{const open=menu.style.display==='flex';menu.style.display=open?'none':'flex';button.setAttribute('aria-expanded',String(!open))});
