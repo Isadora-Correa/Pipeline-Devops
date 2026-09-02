@@ -17,7 +17,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - name: Gerar e verificar build
-        run: npm run build && test -f dist/index.html && test -f dist/style.css && test -f dist/script.js
+        run: npm run build && test -f dist/index.html && test -f dist/style.css && test -f dist/script.js && test -f dist/favicon.svg
 
   test:
     name: Test
