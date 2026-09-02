@@ -1,0 +1,1 @@
+const{readFileSync}=require('node:fs');const{execFileSync}=require('node:child_process');const html=readFileSync('index.html','utf8');['<!DOCTYPE html>','lang="pt-BR"','<main','<h1','aria-label'].forEach(x=>{if(!html.includes(x))throw Error(`HTML sem ${x}`)});execFileSync(process.execPath,['--check','script.js'],{stdio:'inherit'});console.log('Lint concluído.');
